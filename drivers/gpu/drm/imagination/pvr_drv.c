@@ -1427,7 +1427,7 @@ pvr_probe(struct platform_device *plat_dev)
 	devm_pm_runtime_enable(&plat_dev->dev);
 	pm_runtime_mark_last_busy(&plat_dev->dev);
 
-	pm_runtime_set_autosuspend_delay(&plat_dev->dev, 50);
+	pm_runtime_set_autosuspend_delay(&plat_dev->dev, 500);
 	pm_runtime_use_autosuspend(&plat_dev->dev);
 	pvr_watchdog_init(pvr_dev);
 
