@@ -41,7 +41,7 @@ jobs:
             echo "cherry-pick $sha"
             git cherry-pick --allow-empty --strategy=ort -Xtheirs $sha || {
               git cherry-pick --abort 2>/dev/null || true
-              echo "Skipped $sha (conflict or already applied)"
+              echo "Skipped $sha"
             }
           done
 
@@ -56,64 +56,23 @@ jobs:
             }
           done
 
-      - name: riscv/dts switch GPU node to open-source IMG driver (Icenowy)
+      - name: riscv/dts - switch GPU node to open-source IMG driver (Icenowy)
         run: |
           set -e
           cd linux-k3
           DTS=arch/riscv/boot/dts/spacemit/k3.dtsi
-          # Decode and run the DTS node-replacement script
-          echo "aW1wb3J0IHN5cywgcmUKCnBhdGggPSBzeXMuYXJndlsxXQp0ZXh0ID0gb3BlbihwYXRoKS5yZWFkKCkKCnBhdHRlcm4gPSByJyhcdFx0aW1nZ3B1OiBpbWdncHVAY2FjMDAwMDAgXHsuKj9cdFx0XH07KScKbSA9IHJlLnNlYXJjaChwYXR0ZXJuLCB0ZXh0LCByZS5ET1RBTEwpCmlmIG5vdCBtOgogICAgcHJpbnQoIkNsb3NlZC1zb3VyY2UgR1BVIG5vZGUgbm90IGZvdW5kIC0gc2tpcHBpbmciKQogICAgc3lzLmV4aXQoMCkKCm9sZCA9IG0uZ3JvdXAoMSkKbmV3X25vZGUgPSAiIiIvKgoiIiIgKyBvbGQgKyAiIiIKKi8KXHRcdGltZ2dwdTogZ3B1QGNhYzAwMDAwIHsKXHRcdFx0Y29tcGF0aWJsZSA9ICJzcGFjZW1pdCxrMy1ncHUiLCAiaW1nLGltZy1ieG0tNC02NCIsClx0XHRcdFx0ICAgICAiaW1nLGltZy1yb2d1ZSI7Clx0XHRcdGludGVycnVwdC1wYXJlbnQgPSA8JnNhcGxpYz47Clx0XHRcdGludGVycnVwdHMgPSA8NzUgSVJRX1RZUEVfTEVWRUxfSElHSD47Clx0XHRcdHJlZyA9IDwweDAgMHhjYWMwMDAwMCAweDAgMHg4MDAwMD47Clx0XHRcdHJlZy1uYW1lcyA9ICJyZ3hyZWdzIjsKXHRcdFx0cG93ZXItZG9tYWlucyA9IDwmcG93ZXIgSzNfUE1VX0dQVV9QV1JfRE9NQUlOPjsKXHRcdFx0Y2xvY2tzID0gPCZzeXNjb25fYXBtdSBDTEtfQVBNVV9HUFU+OwpcdFx0XHRjbG9jay1uYW1lcyA9ICJjb3JlIjsKXHRcdFx0cmVzZXRzID0gPCZzeXNjb25fYXBtdSBSRVNFVF9BUE1VX0dQVT47Clx0XHRcdCNjb29saW5nLWNlbGxzID0gPDI+OwpcdFx0XHRzdGF0dXMgPSAib2theSI7Clx0XHR9OyIiIgoKb3BlbihwYXRoLCAndycpLndyaXRlKHRleHQucmVwbGFjZShvbGQsIG5ld19ub2RlLCAxKSkKcHJpbnQoIkdQVSBub2RlIHJlcGxhY2VkIHdpdGggb3Blbi1zb3VyY2UgdmVyc2lvbiIpCg==" \
-            | base64 -d | python3 - $DTS
+          echo "aW1wb3J0IHN5cywgcmUKCnBhdGggPSBzeXMuYXJndlsxXQp0ZXh0ID0gb3BlbihwYXRoKS5yZWFkKCkKCnBhdHRlcm4gPSByJyhcdFx0aW1nZ3B1OiBpbWdncHVAY2FjMDAwMDAgXHsuKj9cdFx0XH07KScKbSA9IHJlLnNlYXJjaChwYXR0ZXJuLCB0ZXh0LCByZS5ET1RBTEwpCmlmIG5vdCBtOgogICAgcHJpbnQoIkNsb3NlZC1zb3VyY2UgR1BVIG5vZGUgbm90IGZvdW5kIC0gc2tpcHBpbmciKQogICAgc3lzLmV4aXQoMCkKCm9sZCA9IG0uZ3JvdXAoMSkKbmV3X25vZGUgPSAiIiIvKgoiIiIgKyBvbGQgKyAiIiIKKi8KXHRcdGltZ2dwdTogZ3B1QGNhYzAwMDAwIHsKXHRcdFx0Y29tcGF0aWJsZSA9ICJzcGFjZW1pdCxrMy1ncHUiLCAiaW1nLGltZy1ieG0tNC02NCIsClx0XHRcdFx0ICAgICAiaW1nLGltZy1yb2d1ZSI7Clx0XHRcdGludGVycnVwdC1wYXJlbnQgPSA8JnNhcGxpYz47Clx0XHRcdGludGVycnVwdHMgPSA8NzUgSVJRX1RZUEVfTEVWRUxfSElHSD47Clx0XHRcdHJlZyA9IDwweDAgMHhjYWMwMDAwMCAweDAgMHg4MDAwMD47Clx0XHRcdHJlZy1uYW1lcyA9ICJyZ3hyZWdzIjsKXHRcdFx0cG93ZXItZG9tYWlucyA9IDwmcG93ZXIgSzNfUE1VX0dQVV9QV1JfRE9NQUlOPjsKXHRcdFx0Y2xvY2tzID0gPCZzeXNjb25fYXBtdSBDTEtfQVBNVV9HUFU+OwpcdFx0XHRjbG9jay1uYW1lcyA9ICJjb3JlIjsKXHRcdFx0cmVzZXRzID0gPCZzeXNjb25fYXBtdSBSRVNFVF9BUE1VX0dQVT47Clx0XHRcdCNjb29saW5nLWNlbGxzID0gPDI+OwpcdFx0XHRzdGF0dXMgPSAib2theSI7Clx0XHR9OyIiIgoKb3BlbihwYXRoLCAndycpLndyaXRlKHRleHQucmVwbGFjZShvbGQsIG5ld19ub2RlLCAxKSkKcHJpbnQoIkdQVSBub2RlIHJlcGxhY2VkIHdpdGggb3Blbi1zb3VyY2UgdmVyc2lvbiIpCg==" | base64 -d | python3 - $DTS
           git add $DTS
-          git commit -m "riscv: dts: k3: switch GPU node to open-source IMG driver
-
-Comment out the closed-source img,rgx node; add open-source node
-using compatible strings required by drm/imagination upstream driver.
-
-Based-on: Icenowy Zheng <uwu@icenowy.me>"
+          git commit -m "riscv: dts: k3: switch GPU node to open-source IMG driver (Icenowy)"
 
       - name: K3 perf 1/3 - GPU OPP table + default clock 1228MHz
         run: |
           set -e
           cd linux-k3
           DTS=arch/riscv/boot/dts/spacemit/k3.dtsi
-          python3 - $DTS << 'NOTAHEREDOC'
-import sys
-path = sys.argv[1]
-text = open(path).read()
-anchor = '\t\t\t#cooling-cells = <2>;\n\t\t\tstatus = "okay";\n\t\t};'
-if anchor not in text:
-    print("ERROR: anchor not found", file=sys.stderr)
-    idx = text.find('gpu@cac00000')
-    print(repr(text[idx:idx+300]) if idx>=0 else "node not found", file=sys.stderr)
-    sys.exit(1)
-repl = (
-    '\t\t\tassigned-clocks = <&syscon_apmu CLK_APMU_GPU>;\n'
-    '\t\t\tassigned-clock-rates = <1228000000>;\n'
-    '\t\t\toperating-points-v2 = <&imggpu_opp_table>;\n'
-    '\t\t\t#cooling-cells = <2>;\n'
-    '\t\t\tstatus = "okay";\n\n'
-    '\t\t\timggpu_opp_table: opp-table {\n'
-    '\t\t\t\tcompatible = "operating-points-v2";\n'
-    '\t\t\t\topp-409000000  { opp-hz = /bits/ 64 <409000000>;  clock-latency-ns = <100000>; };\n'
-    '\t\t\t\topp-491000000  { opp-hz = /bits/ 64 <491000000>;  clock-latency-ns = <100000>; };\n'
-    '\t\t\t\topp-614000000  { opp-hz = /bits/ 64 <614000000>;  clock-latency-ns = <100000>; };\n'
-    '\t\t\t\topp-819000000  { opp-hz = /bits/ 64 <819000000>;  clock-latency-ns = <100000>; };\n'
-    '\t\t\t\topp-1000000000 { opp-hz = /bits/ 64 <1000000000>; clock-latency-ns = <100000>; };\n'
-    '\t\t\t\topp-1228000000 { opp-hz = /bits/ 64 <1228000000>; clock-latency-ns = <100000>; };\n'
-    '\t\t\t};\n'
-    '\t\t};'
-)
-open(path, 'w').write(text.replace(anchor, repl, 1))
-print("OPP table inserted")
-NOTAHEREDOC
+          echo "aW1wb3J0IHN5cwpwYXRoID0gc3lzLmFyZ3ZbMV0KdGV4dCA9IG9wZW4ocGF0aCkucmVhZCgpCmFuY2hvciA9ICdcdFx0XHQjY29vbGluZy1jZWxscyA9IDwyPjtcblx0XHRcdHN0YXR1cyA9ICJva2F5Ijtcblx0XHR9OycKaWYgYW5jaG9yIG5vdCBpbiB0ZXh0OgogICAgcHJpbnQoIkVSUk9SOiBhbmNob3Igbm90IGZvdW5kIiwgZmlsZT1zeXMuc3RkZXJyKQogICAgaWR4ID0gdGV4dC5maW5kKCdncHVAY2FjMDAwMDAnKQogICAgcHJpbnQocmVwcih0ZXh0W2lkeDppZHgrMzAwXSkgaWYgaWR4Pj0wIGVsc2UgIm5vZGUgbm90IGZvdW5kIiwgZmlsZT1zeXMuc3RkZXJyKQogICAgc3lzLmV4aXQoMSkKcmVwbCA9ICgKICAgICdcdFx0XHRhc3NpZ25lZC1jbG9ja3MgPSA8JnN5c2Nvbl9hcG11IENMS19BUE1VX0dQVT47XG4nCiAgICAnXHRcdFx0YXNzaWduZWQtY2xvY2stcmF0ZXMgPSA8MTIyODAwMDAwMD47XG4nCiAgICAnXHRcdFx0b3BlcmF0aW5nLXBvaW50cy12MiA9IDwmaW1nZ3B1X29wcF90YWJsZT47XG4nCiAgICAnXHRcdFx0I2Nvb2xpbmctY2VsbHMgPSA8Mj47XG4nCiAgICAnXHRcdFx0c3RhdHVzID0gIm9rYXkiO1xuXG4nCiAgICAnXHRcdFx0aW1nZ3B1X29wcF90YWJsZTogb3BwLXRhYmxlIHtcbicKICAgICdcdFx0XHRcdGNvbXBhdGlibGUgPSAib3BlcmF0aW5nLXBvaW50cy12MiI7XG4nCiAgICAnXHRcdFx0XHRvcHAtNDA5MDAwMDAwICB7IG9wcC1oeiA9IC9iaXRzLyA2NCA8NDA5MDAwMDAwPjsgIGNsb2NrLWxhdGVuY3ktbnMgPSA8MTAwMDAwPjsgfTtcbicKICAgICdcdFx0XHRcdG9wcC00OTEwMDAwMDAgIHsgb3BwLWh6ID0gL2JpdHMvIDY0IDw0OTEwMDAwMDA+OyAgY2xvY2stbGF0ZW5jeS1ucyA9IDwxMDAwMDA+OyB9O1xuJwogICAgJ1x0XHRcdFx0b3BwLTYxNDAwMDAwMCAgeyBvcHAtaHogPSAvYml0cy8gNjQgPDYxNDAwMDAwMD47ICBjbG9jay1sYXRlbmN5LW5zID0gPDEwMDAwMD47IH07XG4nCiAgICAnXHRcdFx0XHRvcHAtODE5MDAwMDAwICB7IG9wcC1oeiA9IC9iaXRzLyA2NCA8ODE5MDAwMDAwPjsgIGNsb2NrLWxhdGVuY3ktbnMgPSA8MTAwMDAwPjsgfTtcbicKICAgICdcdFx0XHRcdG9wcC0xMDAwMDAwMDAwIHsgb3BwLWh6ID0gL2JpdHMvIDY0IDwxMDAwMDAwMDAwPjsgY2xvY2stbGF0ZW5jeS1ucyA9IDwxMDAwMDA+OyB9O1xuJwogICAgJ1x0XHRcdFx0b3BwLTEyMjgwMDAwMDAgeyBvcHAtaHogPSAvYml0cy8gNjQgPDEyMjgwMDAwMDA+OyBjbG9jay1sYXRlbmN5LW5zID0gPDEwMDAwMD47IH07XG4nCiAgICAnXHRcdFx0fTtcbicKICAgICdcdFx0fTsnCikKb3BlbihwYXRoLCAndycpLndyaXRlKHRleHQucmVwbGFjZShhbmNob3IsIHJlcGwsIDEpKQpwcmludCgiT1BQIHRhYmxlIGluc2VydGVkIikK" | base64 -d | python3 - $DTS
           git add $DTS
-          git commit -m "riscv: dts: k3: add GPU OPP table and set default clock to 1228MHz
-
-Add OPP table for BXM-4-64 (409/491/614/819/1000/1228 MHz) and set
-assigned-clock-rates to 1228MHz so the GPU boots at peak frequency.
-
-glmark2: 164 -> 243 FPS (+48%) at 800x600 on K3."
+          git commit -m "riscv: dts: k3: add GPU OPP table and set default clock to 1228MHz"
 
       - name: K3 perf 2/3 - pvr_drv autosuspend delay 500ms
         run: |
@@ -123,11 +82,7 @@ glmark2: 164 -> 243 FPS (+48%) at 800x600 on K3."
             drivers/gpu/drm/imagination/pvr_drv.c
           grep -n "autosuspend_delay" drivers/gpu/drm/imagination/pvr_drv.c
           git add drivers/gpu/drm/imagination/pvr_drv.c
-          git commit -m "drm/imagination: increase autosuspend delay to 500ms for K3
-
-The default 50ms autosuspend delay causes frequent GPU power-domain
-cycling between frames under Weston/Wayland. 500ms keeps the GPU
-resident across frame bursts, reducing PM IRQ and wake-up latency."
+          git commit -m "drm/imagination: increase autosuspend delay to 500ms for K3"
 
       - name: K3 perf 3/3 - pvr_fw active PM latency 100ms
         run: |
@@ -139,11 +94,7 @@ resident across frame bursts, reducing PM IRQ and wake-up latency."
             drivers/gpu/drm/imagination/pvr_fw.c
           grep -n "active_pm_latency" drivers/gpu/drm/imagination/pvr_fw.c
           git add drivers/gpu/drm/imagination/pvr_fw.c
-          git commit -m "drm/imagination: set firmware active PM latency to 100ms for K3
-
-active_pm_latency_ms=0 causes spurious suspend/resume between draw
-calls on K3 BXM-4-64. 100ms matches the realistic power-domain
-transition budget and prevents unnecessary PM churn."
+          git commit -m "drm/imagination: set firmware active PM latency to 100ms for K3"
 
       - name: Show final branch log
         run: |
