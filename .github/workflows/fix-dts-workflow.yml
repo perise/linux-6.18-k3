@@ -1,0 +1,31 @@
+name: 修复 k3.dtsi 孤立 OPP 条目
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: enhancement
+          fetch-depth: 1
+
+      - name: 删除孤立的旧 OPP 条目
+        run: |
+          B64=aW1wb3J0IHN5cywgcmUKZiA9IHN5cy5hcmd2WzFdCndpdGggb3BlbihmKSBhcyBmcDoKICAgIGMgPSBmcC5yZWFkKCkKZml4ZWQgPSByZS5zdWIoCiAgICByIihcdFx0XHRcfTtcblx0XHRcfTtcbilcblx0XHRcdFx0b3BwLVxkLio/KFxuXHRcdFx0XH07XG5cdFx0XH07KSIsCiAgICByIlwxIiwKICAgIGMsIGZsYWdzPXJlLkRPVEFMTCkKYXNzZXJ0IGZpeGVkICE9IGMsICLljLnphY3lpLHotKUiCndpdGggb3BlbihmLCAidyIpIGFzIGZwOgogICAgZnAud3JpdGUoZml4ZWQpCnJlbW92ZWQgPSBjLmNvdW50KCJvcHAtbWljcm92b2x0IikgLSBmaXhlZC5jb3VudCgib3BwLW1pY3Jvdm9sdCIpCnByaW50KGYi5bey5Yig6ZmkIHtyZW1vdmVkfSDkuKrlraTnq4sgT1BQIOadoeebriIpCg==
+          echo "$B64" | base64 -d | python3 - arch/riscv/boot/dts/spacemit/k3.dtsi
+
+      - name: 验证并提交
+        run: |
+          git config user.email "perise@gmail.com"
+          git config user.name "perise"
+          COUNT=$(grep -c "opp-microvolt" arch/riscv/boot/dts/spacemit/k3.dtsi || true)
+          echo "剩余 opp-microvolt 行数（注释内）: $COUNT"
+          # 注释块内还有1个 opp-microvolt，这是正常的；孤立的5个应已删除
+          [ "$COUNT" -le 1 ] || { echo "FAIL: 仍有孤立条目"; exit 1; }
+          git diff --stat
+          git add arch/riscv/boot/dts/spacemit/k3.dtsi
+          git commit -m "riscv: dts: k3: 删除孤立的旧 GPU OPP 条目"
+          git push origin enhancement
