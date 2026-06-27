@@ -1,0 +1,160 @@
+name: Create K3 GPU enhancement branch
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  create-enhancement:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone linux-6.18-k3 (shallow)
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          git clone --depth=200 --branch k3-br-v1.0.y \
+            https://x-access-token:${TOKEN}@github.com/perise/linux-6.18-k3.git linux-k3
+          cd linux-k3
+          git log --oneline -3
+          git config user.email "perise@gmail.com"
+          git config user.name "perise"
+
+      - name: Fetch Icenowy k3-pvr-os (depth=25)
+        run: |
+          set -e
+          cd linux-k3
+          git remote add icenowy https://github.com/Icenowy/linux.git
+          git fetch --depth=25 icenowy k3-pvr-os
+
+      - name: Create enhancement branch
+        run: |
+          cd linux-k3
+          git checkout -b enhancement
+
+      - name: Cherry-pick drm/ttm RISC-V pgprot (Icenowy)
+        run: |
+          cd linux-k3
+          for sha in c86bfa1 f1ca830 df9a04d; do
+            echo "cherry-pick $sha"
+            git cherry-pick --allow-empty --strategy=ort -Xtheirs $sha || {
+              git cherry-pick --abort 2>/dev/null || true
+              echo "Skipped $sha (conflict or already applied)"
+            }
+          done
+
+      - name: Cherry-pick drm/imagination fixes (Icenowy)
+        run: |
+          cd linux-k3
+          for sha in 775f0f3 9252f82 174be88 10a6688 5c4e1da 340a936 7ecb78d b6113ce 5998214 4eda6e8 ceb6c93 fb54f03 ad5cda2; do
+            echo "cherry-pick $sha"
+            git cherry-pick --allow-empty --strategy=ort -Xtheirs $sha || {
+              git cherry-pick --abort 2>/dev/null || true
+              echo "Skipped $sha"
+            }
+          done
+
+      - name: riscv/dts switch GPU node to open-source IMG driver (Icenowy)
+        run: |
+          set -e
+          cd linux-k3
+          DTS=arch/riscv/boot/dts/spacemit/k3.dtsi
+          # Decode and run the DTS node-replacement script
+          echo "aW1wb3J0IHN5cywgcmUKCnBhdGggPSBzeXMuYXJndlsxXQp0ZXh0ID0gb3BlbihwYXRoKS5yZWFkKCkKCnBhdHRlcm4gPSByJyhcdFx0aW1nZ3B1OiBpbWdncHVAY2FjMDAwMDAgXHsuKj9cdFx0XH07KScKbSA9IHJlLnNlYXJjaChwYXR0ZXJuLCB0ZXh0LCByZS5ET1RBTEwpCmlmIG5vdCBtOgogICAgcHJpbnQoIkNsb3NlZC1zb3VyY2UgR1BVIG5vZGUgbm90IGZvdW5kIC0gc2tpcHBpbmciKQogICAgc3lzLmV4aXQoMCkKCm9sZCA9IG0uZ3JvdXAoMSkKbmV3X25vZGUgPSAiIiIvKgoiIiIgKyBvbGQgKyAiIiIKKi8KXHRcdGltZ2dwdTogZ3B1QGNhYzAwMDAwIHsKXHRcdFx0Y29tcGF0aWJsZSA9ICJzcGFjZW1pdCxrMy1ncHUiLCAiaW1nLGltZy1ieG0tNC02NCIsClx0XHRcdFx0ICAgICAiaW1nLGltZy1yb2d1ZSI7Clx0XHRcdGludGVycnVwdC1wYXJlbnQgPSA8JnNhcGxpYz47Clx0XHRcdGludGVycnVwdHMgPSA8NzUgSVJRX1RZUEVfTEVWRUxfSElHSD47Clx0XHRcdHJlZyA9IDwweDAgMHhjYWMwMDAwMCAweDAgMHg4MDAwMD47Clx0XHRcdHJlZy1uYW1lcyA9ICJyZ3hyZWdzIjsKXHRcdFx0cG93ZXItZG9tYWlucyA9IDwmcG93ZXIgSzNfUE1VX0dQVV9QV1JfRE9NQUlOPjsKXHRcdFx0Y2xvY2tzID0gPCZzeXNjb25fYXBtdSBDTEtfQVBNVV9HUFU+OwpcdFx0XHRjbG9jay1uYW1lcyA9ICJjb3JlIjsKXHRcdFx0cmVzZXRzID0gPCZzeXNjb25fYXBtdSBSRVNFVF9BUE1VX0dQVT47Clx0XHRcdCNjb29saW5nLWNlbGxzID0gPDI+OwpcdFx0XHRzdGF0dXMgPSAib2theSI7Clx0XHR9OyIiIgoKb3BlbihwYXRoLCAndycpLndyaXRlKHRleHQucmVwbGFjZShvbGQsIG5ld19ub2RlLCAxKSkKcHJpbnQoIkdQVSBub2RlIHJlcGxhY2VkIHdpdGggb3Blbi1zb3VyY2UgdmVyc2lvbiIpCg==" \
+            | base64 -d | python3 - $DTS
+          git add $DTS
+          git commit -m "riscv: dts: k3: switch GPU node to open-source IMG driver
+
+Comment out the closed-source img,rgx node; add open-source node
+using compatible strings required by drm/imagination upstream driver.
+
+Based-on: Icenowy Zheng <uwu@icenowy.me>"
+
+      - name: K3 perf 1/3 - GPU OPP table + default clock 1228MHz
+        run: |
+          set -e
+          cd linux-k3
+          DTS=arch/riscv/boot/dts/spacemit/k3.dtsi
+          python3 - $DTS << 'NOTAHEREDOC'
+import sys
+path = sys.argv[1]
+text = open(path).read()
+anchor = '\t\t\t#cooling-cells = <2>;\n\t\t\tstatus = "okay";\n\t\t};'
+if anchor not in text:
+    print("ERROR: anchor not found", file=sys.stderr)
+    idx = text.find('gpu@cac00000')
+    print(repr(text[idx:idx+300]) if idx>=0 else "node not found", file=sys.stderr)
+    sys.exit(1)
+repl = (
+    '\t\t\tassigned-clocks = <&syscon_apmu CLK_APMU_GPU>;\n'
+    '\t\t\tassigned-clock-rates = <1228000000>;\n'
+    '\t\t\toperating-points-v2 = <&imggpu_opp_table>;\n'
+    '\t\t\t#cooling-cells = <2>;\n'
+    '\t\t\tstatus = "okay";\n\n'
+    '\t\t\timggpu_opp_table: opp-table {\n'
+    '\t\t\t\tcompatible = "operating-points-v2";\n'
+    '\t\t\t\topp-409000000  { opp-hz = /bits/ 64 <409000000>;  clock-latency-ns = <100000>; };\n'
+    '\t\t\t\topp-491000000  { opp-hz = /bits/ 64 <491000000>;  clock-latency-ns = <100000>; };\n'
+    '\t\t\t\topp-614000000  { opp-hz = /bits/ 64 <614000000>;  clock-latency-ns = <100000>; };\n'
+    '\t\t\t\topp-819000000  { opp-hz = /bits/ 64 <819000000>;  clock-latency-ns = <100000>; };\n'
+    '\t\t\t\topp-1000000000 { opp-hz = /bits/ 64 <1000000000>; clock-latency-ns = <100000>; };\n'
+    '\t\t\t\topp-1228000000 { opp-hz = /bits/ 64 <1228000000>; clock-latency-ns = <100000>; };\n'
+    '\t\t\t};\n'
+    '\t\t};'
+)
+open(path, 'w').write(text.replace(anchor, repl, 1))
+print("OPP table inserted")
+NOTAHEREDOC
+          git add $DTS
+          git commit -m "riscv: dts: k3: add GPU OPP table and set default clock to 1228MHz
+
+Add OPP table for BXM-4-64 (409/491/614/819/1000/1228 MHz) and set
+assigned-clock-rates to 1228MHz so the GPU boots at peak frequency.
+
+glmark2: 164 -> 243 FPS (+48%) at 800x600 on K3."
+
+      - name: K3 perf 2/3 - pvr_drv autosuspend delay 500ms
+        run: |
+          set -e
+          cd linux-k3
+          sed -i 's/pm_runtime_set_autosuspend_delay(&plat_dev->dev, 50);/pm_runtime_set_autosuspend_delay(\&plat_dev->dev, 500);/' \
+            drivers/gpu/drm/imagination/pvr_drv.c
+          grep -n "autosuspend_delay" drivers/gpu/drm/imagination/pvr_drv.c
+          git add drivers/gpu/drm/imagination/pvr_drv.c
+          git commit -m "drm/imagination: increase autosuspend delay to 500ms for K3
+
+The default 50ms autosuspend delay causes frequent GPU power-domain
+cycling between frames under Weston/Wayland. 500ms keeps the GPU
+resident across frame bursts, reducing PM IRQ and wake-up latency."
+
+      - name: K3 perf 3/3 - pvr_fw active PM latency 100ms
+        run: |
+          set -e
+          cd linux-k3
+          sed -i \
+            -e 's/fwif_sysinit->active_pm_latency_ms = 0;/fwif_sysinit->active_pm_latency_ms = 100;/' \
+            -e 's/runtime_cfg->active_pm_latency_ms = 0;/runtime_cfg->active_pm_latency_ms = 100;/' \
+            drivers/gpu/drm/imagination/pvr_fw.c
+          grep -n "active_pm_latency" drivers/gpu/drm/imagination/pvr_fw.c
+          git add drivers/gpu/drm/imagination/pvr_fw.c
+          git commit -m "drm/imagination: set firmware active PM latency to 100ms for K3
+
+active_pm_latency_ms=0 causes spurious suspend/resume between draw
+calls on K3 BXM-4-64. 100ms matches the realistic power-domain
+transition budget and prevents unnecessary PM churn."
+
+      - name: Show final branch log
+        run: |
+          cd linux-k3
+          git log --oneline -25
+
+      - name: Push enhancement branch
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          cd linux-k3
+          git remote set-url origin "https://x-access-token:${TOKEN}@github.com/perise/linux-6.18-k3.git"
+          git push --force origin enhancement
