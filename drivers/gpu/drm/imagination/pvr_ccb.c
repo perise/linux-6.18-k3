@@ -157,6 +157,16 @@ process_fwccb_command(struct pvr_device *pvr_dev, struct rogue_fwif_fwccb_cmd *c
 		pvr_free_list_process_grow_req(pvr_dev, &cmd->cmd_data.cmd_free_list_gs);
 		break;
 
+	case ROGUE_FWIF_FWCCB_CMD_CONTEXT_RESET_NOTIFICATION:
+		drm_dbg(drm_dev,
+			"FW context reset notification: ctx=%u reason=%u dm=%u job=%u flags=0x%x\n",
+			cmd->cmd_data.cmd_context_reset_notification.server_common_context_id,
+			cmd->cmd_data.cmd_context_reset_notification.reset_reason,
+			cmd->cmd_data.cmd_context_reset_notification.dm,
+			cmd->cmd_data.cmd_context_reset_notification.reset_job_ref,
+			cmd->cmd_data.cmd_context_reset_notification.flags);
+		break;
+
 	case ROGUE_FWIF_FWCCB_CMD_UPDATE_STATS:
 		/*
 		 * We currently have no infrastructure for processing these
