@@ -35,4 +35,6 @@ extern struct platform_driver spacemit_dphy_driver;
 extern struct platform_driver spacemit_wb_driver;
 extern struct platform_driver spacemit_dsi_driver;
 
+int spacemit_plane_atomic_assign_rdmas(struct drm_atomic_state *state);
+
 #endif /* _SPACEMIT_DRM_H_ */

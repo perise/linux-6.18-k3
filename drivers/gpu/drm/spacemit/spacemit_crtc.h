@@ -343,6 +343,7 @@ struct spacemit_plane {
 struct spacemit_plane_state {
 	struct drm_plane_state state;
 	u32 rdma_id;
+	bool rdma_id_explicit;
 	u32 solid_color;
 	u32 dec_lines;
 	/*

@@ -117,6 +117,31 @@ static bool spacemit_drm_mode_equal(const struct drm_display_mode *mode1,
 	return true;
 }
 
+static int spacemit_drm_add_all_active_planes(struct drm_device *dev,
+					       struct drm_atomic_state *state)
+{
+	struct drm_crtc_state *crtc_state;
+	struct drm_crtc *crtc;
+	int ret;
+
+	/*
+	 * RDMA channels are shared by every active plane on a CRTC. Pull all of
+	 * them into this transaction so channel allocation is race-free and sees
+	 * planes which userspace did not modify in this commit.
+	 */
+	drm_for_each_crtc(crtc, dev) {
+		crtc_state = drm_atomic_get_crtc_state(state, crtc);
+		if (IS_ERR(crtc_state))
+			return PTR_ERR(crtc_state);
+
+		ret = drm_atomic_add_affected_planes(state, crtc);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 /* based on drm_atomic_helper_check */
 static int spacemit_drm_atomic_helper_check(struct drm_device *dev, struct drm_atomic_state *state)
 {
@@ -125,8 +150,18 @@ static int spacemit_drm_atomic_helper_check(struct drm_device *dev, struct drm_a
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
 	int i;
 
+	ret = spacemit_drm_add_all_active_planes(dev, state);
+	if (ret)
+		return ret;
+
+	ret = spacemit_plane_atomic_assign_rdmas(state);
+	if (ret)
+		return ret;
+
 	/* original drm api */
 	ret = drm_atomic_helper_check(dev, state);
+	if (ret)
+		return ret;
 
 	/* if new crtc mode only update vfp, no need to disable and enable crtc and connector */
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {

@@ -111,6 +111,135 @@ static int spacemit_plane_check_rdma(const struct spacemit_hw_rdma *rdma, u32 rd
 	return 0;
 }
 
+static bool spacemit_plane_match_rdma(unsigned int plane_index,
+				      const u32 *candidate_masks,
+				      int *rdma_owners,
+				      int *plane_rdmas,
+				      unsigned long *visited,
+				      unsigned int n_rdmas)
+{
+	unsigned int rdma_id;
+
+	for (rdma_id = 0; rdma_id < n_rdmas; rdma_id++) {
+		if (!(candidate_masks[plane_index] & BIT(rdma_id)) ||
+		    (*visited & BIT(rdma_id)))
+			continue;
+
+		*visited |= BIT(rdma_id);
+		if (rdma_owners[rdma_id] < 0 ||
+		    spacemit_plane_match_rdma(rdma_owners[rdma_id],
+					      candidate_masks, rdma_owners,
+					      plane_rdmas, visited, n_rdmas)) {
+			rdma_owners[rdma_id] = plane_index;
+			plane_rdmas[plane_index] = rdma_id;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+int spacemit_plane_atomic_assign_rdmas(struct drm_atomic_state *atomic_state)
+{
+	struct spacemit_plane_state *auto_states[N_DMA_LAYER_MAX];
+	u32 candidate_masks[N_DMA_LAYER_MAX];
+	int plane_rdmas[N_DMA_LAYER_MAX];
+	int rdma_owners[N_DMA_CHANNEL_MAX];
+	struct spacemit_drm_private *priv = atomic_state->dev->dev_private;
+	struct spacemit_hw_device *hwdev = priv->hwdev;
+	const struct spacemit_hw_rdma *rdmas = hwdev->rdmas;
+	struct drm_plane_state *state;
+	struct spacemit_plane_state *spacemit_state;
+	struct drm_plane *plane;
+	unsigned long explicitly_used = 0;
+	unsigned int auto_count = 0;
+	unsigned int i, rdma_id;
+
+	if (WARN_ON(hwdev->rdma_nums > N_DMA_CHANNEL_MAX))
+		return -EINVAL;
+
+	/* Reserve channels requested through the vendor RDMA_ID property. */
+	for_each_new_plane_in_state(atomic_state, plane, state, i) {
+		spacemit_state = to_spacemit_plane_state(state);
+		if (!state->crtc || !state->fb ||
+		    (!(state->src_w >> 16) && !(state->src_h >> 16))) {
+			if (!spacemit_state->rdma_id_explicit)
+				spacemit_state->rdma_id = RDMA_INVALID_ID;
+			continue;
+		}
+
+		if (!spacemit_state->rdma_id_explicit) {
+			spacemit_state->rdma_id = RDMA_INVALID_ID;
+			continue;
+		}
+
+		rdma_id = spacemit_state->rdma_id;
+		if (rdma_id >= hwdev->rdma_nums ||
+		    spacemit_plane_check_rdma(rdmas, rdma_id, state)) {
+			DRM_ERROR("plane %s requested unsupported RDMA_ID %u\n",
+				  plane->name, rdma_id);
+			return -EINVAL;
+		}
+		if (explicitly_used & BIT(rdma_id)) {
+			DRM_ERROR("RDMA_ID %u requested by multiple active planes\n",
+				  rdma_id);
+			return -EINVAL;
+		}
+		explicitly_used |= BIT(rdma_id);
+	}
+
+	/* Build capability masks for planes which use automatic allocation. */
+	for_each_new_plane_in_state(atomic_state, plane, state, i) {
+		u32 candidates = 0;
+
+		spacemit_state = to_spacemit_plane_state(state);
+		if (!state->crtc || !state->fb ||
+		    (!(state->src_w >> 16) && !(state->src_h >> 16)) ||
+		    spacemit_state->rdma_id_explicit)
+			continue;
+
+		if (auto_count >= ARRAY_SIZE(auto_states)) {
+			DRM_ERROR("too many active planes for RDMA allocation\n");
+			return -EINVAL;
+		}
+
+		for (rdma_id = 0; rdma_id < hwdev->rdma_nums; rdma_id++) {
+			if ((explicitly_used & BIT(rdma_id)) ||
+			    spacemit_plane_check_rdma(rdmas, rdma_id, state))
+				continue;
+			candidates |= BIT(rdma_id);
+		}
+
+		if (!candidates) {
+			DRM_ERROR("no compatible RDMA available for plane %s (zpos %u)\n",
+				  plane->name, state->zpos);
+			return -EINVAL;
+		}
+
+		auto_states[auto_count] = spacemit_state;
+		candidate_masks[auto_count] = candidates;
+		auto_count++;
+	}
+
+	memset(rdma_owners, 0xff, sizeof(rdma_owners));
+	memset(plane_rdmas, 0xff, sizeof(plane_rdmas));
+	for (i = 0; i < auto_count; i++) {
+		unsigned long visited = 0;
+
+		if (!spacemit_plane_match_rdma(i, candidate_masks, rdma_owners,
+					       plane_rdmas, &visited,
+					       hwdev->rdma_nums)) {
+			DRM_ERROR("not enough compatible RDMA channels for active planes\n");
+			return -EINVAL;
+		}
+	}
+
+	for (i = 0; i < auto_count; i++)
+		auto_states[i]->rdma_id = plane_rdmas[i];
+
+	return 0;
+}
+
 static int spacemit_plane_atomic_check_hdr_coefs(struct drm_plane *plane,
 					  struct drm_plane_state *state)
 {
@@ -220,9 +349,11 @@ static int spacemit_plane_atomic_check(struct drm_plane *plane,
 		DRM_ERROR("%s, Unsupported src_w %d src_h %d\n", __func__, src_w, src_h);
 		return -EINVAL;
 	} else {
-		/* In case the userspace hasn't set rdma id */
-		if (cur_rdma_id == RDMA_INVALID_ID)
-			cur_rdma_id = state->zpos;
+		if (cur_rdma_id == RDMA_INVALID_ID) {
+			DRM_ERROR("No RDMA assigned to plane %s (zpos %u)\n",
+				  plane->name, state->zpos);
+			return -EINVAL;
+		}
 	}
 	cur_state->rdma_id = cur_rdma_id;
 
@@ -429,6 +560,7 @@ static void spacemit_plane_reset(struct drm_plane *plane)
 		__drm_atomic_helper_plane_reset(plane, &s->state);
 		s->state.zpos = hwdev->plane_nums - p->hw_pid - 1;
 		s->rdma_id = RDMA_INVALID_ID;
+		s->rdma_id_explicit = false;
 		s->is_offline = 0;
 		s->scaler_id = SCALER_INVALID_ID;
 	}
@@ -463,6 +595,7 @@ spacemit_plane_atomic_duplicate_state(struct drm_plane *plane)
 
 	s->is_offline = old_state->is_offline;
 	s->rdma_id = old_state->rdma_id;
+	s->rdma_id_explicit = old_state->rdma_id_explicit;
 	s->format = old_state->format;
 	s->right_image = old_state->right_image;
 	s->scaler_id = SCALER_INVALID_ID;
@@ -524,9 +657,10 @@ static int spacemit_plane_atomic_set_property(struct drm_plane *plane,
 	DRM_DEBUG("%s() name = %s, val = %llu\n",
 		  __func__, property->name, val);
 
-	if (property == p->rdma_id_property)
+	if (property == p->rdma_id_property) {
 		s->rdma_id = val;
-	else if (property == p->solid_color_property)
+		s->rdma_id_explicit = s->rdma_id != RDMA_INVALID_ID;
+	} else if (property == p->solid_color_property)
 		s->solid_color = val;
 	else if (property == p->dec_lines_property)
 		s->dec_lines = val;
