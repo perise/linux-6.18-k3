@@ -90,6 +90,7 @@ struct sg_table;
 
 void pvr_mmu_flush_request_all(struct pvr_device *pvr_dev);
 int pvr_mmu_flush_exec(struct pvr_device *pvr_dev, bool wait);
+int pvr_slc_flush_invalidate(struct pvr_device *pvr_dev, bool invalidate);
 
 struct pvr_mmu_context *pvr_mmu_context_create(struct pvr_device *pvr_dev);
 void pvr_mmu_context_destroy(struct pvr_mmu_context *ctx);

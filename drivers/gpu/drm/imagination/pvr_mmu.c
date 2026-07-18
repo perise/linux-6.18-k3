@@ -189,6 +189,37 @@ err_drm_dev_exit:
 	return err;
 }
 
+int pvr_slc_flush_invalidate(struct pvr_device *pvr_dev, bool invalidate)
+{
+	struct rogue_fwif_kccb_cmd cmd = {};
+	struct rogue_fwif_slcflushinvaldata *data =
+		&cmd.cmd_data.slc_flush_inval_data;
+	u32 slot;
+	int err;
+	int idx;
+
+	if (!drm_dev_enter(from_pvr_device(pvr_dev), &idx))
+		return -EIO;
+
+	if (!pvr_dev->fw_dev.booted) {
+		err = -EIO;
+		goto err_drm_dev_exit;
+	}
+
+	cmd.cmd_type = ROGUE_FWIF_KCCB_CMD_SLCFLUSHINVAL;
+	data->inval = invalidate;
+	data->dm_context = false;
+
+	err = pvr_kccb_send_cmd(pvr_dev, &cmd, &slot);
+	if (!err)
+		err = pvr_kccb_wait_for_completion(pvr_dev, slot, HZ, NULL);
+
+err_drm_dev_exit:
+	drm_dev_exit(idx);
+
+	return err;
+}
+
 /**
  * DOC: PowerVR Virtual Memory Handling
  */

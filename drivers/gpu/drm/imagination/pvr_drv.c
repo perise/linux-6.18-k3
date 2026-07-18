@@ -1266,6 +1266,19 @@ pvr_set_uobj_array(const struct drm_pvr_obj_array *out, u32 min_stride, u32 obj_
 	return 0;
 }
 
+static int
+pvr_ioctl_slc_flush_inval(struct drm_device *drm_dev, void *raw_args,
+			  struct drm_file *file __always_unused)
+{
+	struct drm_pvr_ioctl_slc_flush_inval_args *args = raw_args;
+
+	if (args->flags & ~DRM_PVR_SLC_FLUSH_INVAL_INVALIDATE)
+		return -EINVAL;
+
+	return pvr_slc_flush_invalidate(to_pvr_device(drm_dev),
+					args->flags & DRM_PVR_SLC_FLUSH_INVAL_INVALIDATE);
+}
+
 #define DRM_PVR_IOCTL(_name, _func, _flags) \
 	DRM_IOCTL_DEF_DRV(PVR_##_name, pvr_ioctl_##_func, _flags)
 
@@ -1286,6 +1299,7 @@ static const struct drm_ioctl_desc pvr_drm_driver_ioctls[] = {
 	DRM_PVR_IOCTL(CREATE_HWRT_DATASET, create_hwrt_dataset, DRM_RENDER_ALLOW),
 	DRM_PVR_IOCTL(DESTROY_HWRT_DATASET, destroy_hwrt_dataset, DRM_RENDER_ALLOW),
 	DRM_PVR_IOCTL(SUBMIT_JOBS, submit_jobs, DRM_RENDER_ALLOW),
+	DRM_PVR_IOCTL(SLC_FLUSH_INVAL, slc_flush_inval, DRM_RENDER_ALLOW),
 };
 
 /* clang-format on */

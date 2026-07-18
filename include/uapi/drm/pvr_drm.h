@@ -109,6 +109,14 @@ struct drm_pvr_obj_array {
 #define DRM_IOCTL_PVR_DESTROY_HWRT_DATASET PVR_IOCTL(0x0c, DRM_IOW, destroy_hwrt_dataset)
 #define DRM_IOCTL_PVR_SUBMIT_JOBS PVR_IOCTL(0x0d, DRM_IOW, submit_jobs)
 
+#define DRM_IOCTL_PVR_SLC_FLUSH_INVAL PVR_IOCTL(0x0e, DRM_IOW, slc_flush_inval)
+
+#define DRM_PVR_SLC_FLUSH_INVAL_INVALIDATE _BITULL(0)
+
+struct drm_pvr_ioctl_slc_flush_inval_args {
+	__u64 flags;
+};
+
 /**
  * DOC: PowerVR IOCTL DEV_QUERY interface
  */
