@@ -8,6 +8,7 @@
 #include "pvr_vm.h"
 
 #include <drm/drm_gem.h>
+#include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/xarray.h>
 #include <uapi/drm/pvr_drm.h>
@@ -473,17 +474,20 @@ pvr_free_list_release(struct kref *ref_count)
 		container_of(ref_count, struct pvr_free_list, ref_count);
 	struct list_head *pos, *n;
 	int err;
+	unsigned int retry;
 
 	xa_erase(&free_list->pvr_dev->free_list_ids, free_list->fw_id);
 
 	err = pvr_fw_structure_cleanup(free_list->pvr_dev,
 				       ROGUE_FWIF_CLEANUP_FREELIST,
 				       free_list->fw_obj, 0);
-	if (err == -EBUSY) {
-		/* Flush the FWCCB to process any HWR or freelist reconstruction
-		 * request that might keep the freelist busy, and try again.
+	for (retry = 0; err == -EBUSY && retry < 10; retry++) {
+		/* A cleanup request can race firmware processing an HWR or
+		 * freelist reconstruction request. Let firmware make progress
+		 * before releasing memory it still references.
 		 */
 		pvr_fwccb_process(free_list->pvr_dev);
+		usleep_range(1000, 2000);
 		err = pvr_fw_structure_cleanup(free_list->pvr_dev,
 					       ROGUE_FWIF_CLEANUP_FREELIST,
 					       free_list->fw_obj, 0);
